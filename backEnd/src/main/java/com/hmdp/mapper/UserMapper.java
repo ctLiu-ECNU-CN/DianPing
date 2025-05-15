@@ -2,6 +2,7 @@ package com.hmdp.mapper;
 
 import com.hmdp.entity.User;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.apache.ibatis.annotations.Select;
 
 /**
  * <p>
@@ -13,4 +14,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  */
 public interface UserMapper extends BaseMapper<User> {
 
+//    @Select("select * from tb_user where phone = #{phone}")
+//    void getUserByPhone(User user);
 }
