@@ -33,18 +33,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         String shopJson = stringRedisTemplate.opsForValue().get("cache:shop:" + id);
         // 缓存是否存在
         if(StrUtil.isNotBlank(shopJson)){
+        // 存在,直接读缓存
             Shop bean = JSONUtil.toBean(shopJson, Shop.class);
             return Result.ok(bean);
         }
-        // 存在,直接读缓存
-        Shop shop = getById(id);
         // 不存在,根据 id 查询数据库
+        Shop shop = getById(id);
+        // 不存在,返回错误提示
         if(shop == null){
             return Result.fail("店铺不存在");
         }
-        // 不存在,返回错误提示
-        stringRedisTemplate.opsForValue().set("cache:shop:" + id, JSONUtil.toJsonStr(shop));
         // 存在 写入 redis 并返回
+        stringRedisTemplate.opsForValue().set("cache:shop:" + id, JSONUtil.toJsonStr(shop));
         return Result.ok(shop);
     }
 
