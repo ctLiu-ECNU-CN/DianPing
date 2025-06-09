@@ -45,6 +45,7 @@ public class CacheClient {
         String shopJson = stringRedisTemplate.opsForValue().get(key);
         // 缓存是否存在
         if(StrUtil.isNotBlank(shopJson)){
+            log.info("缓存命中");
             // 存在,直接读缓存
             return JSONUtil.toBean(shopJson, type);
 
@@ -66,7 +67,7 @@ public class CacheClient {
     }
 
     public <R,ID> R queryWithLogicalExpire(String preFix,ID id,Class<R> type,Function<ID,R> dbFallback,Long time,TimeUnit unit){
-        String key = preFix + id.toString();
+        String key = preFix + id;
         // 从 redis 中查询缓存
         String shopJson = stringRedisTemplate.opsForValue().get(key);
         // 缓存是否存在
@@ -80,6 +81,7 @@ public class CacheClient {
 
         LocalDateTime expireTime = redisData.getExpireTime();
         // 判断是否过期
+        // TODO fix expioreTime null
         if(expireTime.isAfter(LocalDateTime.now())){
             // 未过期
             return r;
@@ -88,7 +90,7 @@ public class CacheClient {
         // 缓存重建
 
         // 获取互斥锁
-        String lockKey = preFix + id;
+        String lockKey = LOCK_SHOP_KEY + id;
         boolean islock = tryLock(lockKey);
         // 判断是否获取锁成功
         if(!islock){
@@ -100,7 +102,7 @@ public class CacheClient {
             try {
                 //查询数据库
                 R r1 = dbFallback.apply(id);
-                this.setWithLogicalExpire(key,id,time,unit);
+                this.setWithLogicalExpire(key,r1,time,unit);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {
