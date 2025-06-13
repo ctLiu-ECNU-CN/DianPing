@@ -208,8 +208,13 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                 user.getId().toString(),
                 String.valueOf(orderId)
         );
+
 //        判断结果不为 0--没有购买资格
         int r = executeResult.intValue();
+        if(r == -1){
+            return Result.fail("优惠券不存在");
+
+        }
         if(r != 0){
             return Result.fail(r==1?"库存不足":"不能重复下单");
         }
