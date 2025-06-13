@@ -11,6 +11,7 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherService;
 import com.hmdp.utils.RedisIdWorker;
 import com.hmdp.utils.UserHolder;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,9 @@ import java.util.List;
  */
 @Service
 public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> implements IVoucherService {
+
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     @Resource
     private ISeckillVoucherService seckillVoucherService;
@@ -55,6 +59,8 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         seckillVoucher.setBeginTime(voucher.getBeginTime());
         seckillVoucher.setEndTime(voucher.getEndTime());
         seckillVoucherService.save(seckillVoucher);
+        // 保存秒杀库存到 Redis 中
+        stringRedisTemplate.opsForValue().set("seckill:stock:"+voucher.getId(),voucher.getStock().toString());
     }
 
 
