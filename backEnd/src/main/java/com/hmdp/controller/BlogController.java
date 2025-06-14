@@ -43,12 +43,21 @@ public class BlogController {
         return Result.ok(blog.getId());
     }
 
+    /**
+     * 用户点赞
+     * @param id
+     * @return
+     */
     @PutMapping("/like/{id}")
     public Result likeBlog(@PathVariable("id") Long id) {
         // 修改点赞数量
-        blogService.update()
-                .setSql("liked = liked + 1").eq("id", id).update();
-        return Result.ok();
+        // fix 同一用户可多次点赞
+        // fix 数据库实现改为 redis 实现
+        // key blog id set(点赞的用户的 id) 并且支持唯一
+//        blogService.update()
+//                .setSql("liked = liked + 1").eq("id", id).update();
+//        return Result.ok();
+        return blogService.likeBlog(id);
     }
 
     @GetMapping("/of/me")

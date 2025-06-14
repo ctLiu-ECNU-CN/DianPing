@@ -1,11 +1,16 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.util.BooleanUtil;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.UserHolder;
+import net.bytebuddy.asm.Advice;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -30,6 +35,9 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     @Resource
     private IBlogService blogService;
 
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
     @Override
     public Result queryBlogById(Long id) {
         //1查询 blog
@@ -39,7 +47,20 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         }
 //        查询 blog的用户
         queryById(blog);
+        ifBlogLiked(blog);
         return Result.ok(blog);
+    }
+
+    /**
+     * 封装函数 判断是否点赞
+     * @param blog
+     */
+    private void ifBlogLiked(Blog blog) {
+        Long userId = UserHolder.getUser().getId();
+//        判断当前登录用户是否已经点赞
+        String key = "blog:liked:" + blog.getId();
+        Boolean member = stringRedisTemplate.opsForSet().isMember(key, userId.toString());
+        blog.setIsLike(BooleanUtil.isTrue(member));
     }
 
     private void queryById(Blog blog) {
@@ -58,7 +79,43 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         // 获取当前页数据
         List<Blog> records = page.getRecords();
         // 查询用户
-        records.forEach(this::queryById);
+        records.forEach(blog ->{
+            this.queryById(blog);
+            this.ifBlogLiked(blog);//当前用户是否点赞
+        });
         return Result.ok(records);
+    }
+
+    /**
+     * blog点赞功能实现
+     * @param id
+     * @return
+     */
+    @Override
+    public Result likeBlog(Long id) {
+//        获取登录用户id
+        Long userId = UserHolder.getUser().getId();
+//        判断当前登录用户是否已经点赞
+        String key = "blog:liked:" + id;
+        Boolean isMember = stringRedisTemplate.opsForSet().isMember(key, userId.toString());
+        if(BooleanUtil.isFalse(isMember)){
+//        如果未点赞,可以点赞
+//        数据库点赞数量+1
+            boolean updateResult = update().setSql("liked = liked + 1").eq("id", id).update();
+            if(updateResult){
+//        保存用户到 Redis 的 set 结合
+                stringRedisTemplate.opsForSet().add(key,userId.toString());
+            }
+
+        }else{
+
+//        如果已经点赞,数据库点赞数-1
+            boolean updateResult = update().setSql("liked = liked - 1 ").eq("id", id).update();
+//        把用户从 Redis 的 set 集合移除
+            if(updateResult){
+                stringRedisTemplate.opsForSet().remove(key,userId.toString());
+            }
+        }
+        return Result.ok();
     }
 }
