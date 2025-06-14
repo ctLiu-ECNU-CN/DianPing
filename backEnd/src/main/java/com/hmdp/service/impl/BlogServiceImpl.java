@@ -59,8 +59,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Long userId = UserHolder.getUser().getId();
 //        判断当前登录用户是否已经点赞
         String key = "blog:liked:" + blog.getId();
-        Boolean member = stringRedisTemplate.opsForSet().isMember(key, userId.toString());
-        blog.setIsLike(BooleanUtil.isTrue(member));
+        Double score = stringRedisTemplate.opsForZSet().score(key, userId.toString());
+        blog.setIsLike(score!=null);
     }
 
     private void queryById(Blog blog) {
@@ -97,14 +97,14 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         Long userId = UserHolder.getUser().getId();
 //        判断当前登录用户是否已经点赞
         String key = "blog:liked:" + id;
-        Boolean isMember = stringRedisTemplate.opsForSet().isMember(key, userId.toString());
-        if(BooleanUtil.isFalse(isMember)){
+        Double score = stringRedisTemplate.opsForZSet().score(key, userId.toString());
+        if(score == null){
 //        如果未点赞,可以点赞
 //        数据库点赞数量+1
             boolean updateResult = update().setSql("liked = liked + 1").eq("id", id).update();
             if(updateResult){
-//        保存用户到 Redis 的 set 结合
-                stringRedisTemplate.opsForSet().add(key,userId.toString());
+//        保存用户到 Redis 的 zset  zadd key value score
+                stringRedisTemplate.opsForZSet().add(key,userId.toString(),System.currentTimeMillis());
             }
 
         }else{
@@ -113,7 +113,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             boolean updateResult = update().setSql("liked = liked - 1 ").eq("id", id).update();
 //        把用户从 Redis 的 set 集合移除
             if(updateResult){
-                stringRedisTemplate.opsForSet().remove(key,userId.toString());
+                stringRedisTemplate.opsForZSet().remove(key,userId.toString());
             }
         }
         return Result.ok();
