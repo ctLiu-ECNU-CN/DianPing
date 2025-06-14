@@ -3,6 +3,7 @@ package com.hmdp.controller;
 
 import com.hmdp.dto.Result;
 import com.hmdp.service.IFollowService;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -18,6 +19,7 @@ import javax.annotation.Resource;
 @RestController
 @RequestMapping("/follow")
 public class FollowController {
+
 
     @Resource
     private IFollowService followService;
