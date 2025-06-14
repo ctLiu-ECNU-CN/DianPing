@@ -1,6 +1,8 @@
 package com.hmdp.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.StrUtil;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
@@ -19,7 +21,13 @@ import com.hmdp.utils.SystemConstants;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
+
 /**
  * <p>
  *  服务实现类
@@ -56,7 +64,12 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
      * @param blog
      */
     private void ifBlogLiked(Blog blog) {
-        Long userId = UserHolder.getUser().getId();
+        UserDTO user = UserHolder.getUser();
+        if(user == null){
+            return;
+        }
+        Long userId = user.getId();
+//        Long userId = UserHolder.getUser().getId();
 //        判断当前登录用户是否已经点赞
         String key = "blog:liked:" + blog.getId();
         Double score = stringRedisTemplate.opsForZSet().score(key, userId.toString());
@@ -117,5 +130,33 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             }
         }
         return Result.ok();
+    }
+
+    /**
+     * 查询用户前五名点赞的用户
+     * @param id
+     * @return
+     */
+    @Override
+    public Result queryTopLikes(Long id) {
+        String key = BLOG_LIKED_KEY + id;
+        //查询 top5的点赞用户
+        Set<String> top5 = stringRedisTemplate.opsForZSet().range(key,0,4);
+
+        if(top5 == null || top5.isEmpty()){
+            return Result.ok(Collections.emptyList());
+
+        }
+        //解析用户
+        List<Long> ids = top5.stream().map(Long::valueOf).collect(Collectors.toList());
+
+        //根据 id 查询用户
+        String join = StrUtil.join(",", ids); //利用 MyBatisPlus自定义 query按照指定的 id 顺序 投影结果
+        List<UserDTO> userDTOS = userService.query().in("id",ids).last("ORDER BY FIELD(id," + join +")").list()
+                .stream()
+                .map(user -> BeanUtil.copyProperties(user, UserDTO.class))
+                .collect(Collectors.toList());
+
+        return Result.ok(userDTOS);
     }
 }
