@@ -205,7 +205,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
             // 推送
             String key = "feed:" + userId;
             // 使用 SortedSet,按照时间戳排序
-            stringRedisTemplate.opsForZSet().add(key,userId.toString(),System.currentTimeMillis());
+            stringRedisTemplate.opsForZSet().add(key,blog.getId().toString(),System.currentTimeMillis());
         }
         return Result.ok(blog.getId());
     }
